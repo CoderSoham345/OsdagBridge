@@ -622,3 +622,94 @@ class BridgeIfcGenerator:
         # Intentionally ignore "deck_textures"
         print("Model assembly complete. Saving...")
         self.file.write(self.output_path)
+
+
+def append_substructure_to_ifc(ifc_generator, substructure_data, scale=0.001):
+    """Add substructure concrete and rebar elements into the active IFC4 model."""
+    if not ifc_generator or not getattr(ifc_generator, "file", None) or not substructure_data:
+        return
+
+    ifc_file = ifc_generator.file
+    owner_history = getattr(ifc_generator, "_owner_history", None)
+    storey = getattr(ifc_generator, "storey", None)
+    mapper = getattr(ifc_generator, "mapper", None)
+    if mapper is None or storey is None:
+        return
+
+    origin_place = ifc_file.createIfcLocalPlacement(
+        storey.ObjectPlacement,
+        mapper.create_axis2placement_3d((0.0, 0.0, 0.0), z_dir=(0.0, 0.0, 1.0), x_dir=(1.0, 0.0, 0.0)),
+    )
+
+    for idx, _ in enumerate(substructure_data.get("concrete", []), start=1):
+        elem = ifc_file.createIfcBuildingElementProxy(
+            create_ifc_guid(),
+            owner_history,
+            Name=f"Substructure_Concrete_{idx}",
+            ObjectPlacement=origin_place,
+            PredefinedType="ELEMENT",
+        )
+        ifc_generator.bind_element_to_storey(elem)
+
+    for idx, _ in enumerate(substructure_data.get("rebar", []), start=1):
+        bar = ifc_file.createIfcReinforcingBar(
+            create_ifc_guid(),
+            owner_history,
+            Name=f"Substructure_Rebar_{idx}",
+            ObjectPlacement=origin_place,
+            PredefinedType="BAR",
+        )
+        ifc_generator.bind_element_to_storey(bar)
+
+
+def add_substructure_elements_to_ifc(ifc_generator, substructure_data, scale=0.001):
+    """Wrap substructure concrete and rebar entities into the IFC4 spatial hierarchy."""
+    if ifc_generator is None or getattr(ifc_generator, "file", None) is None or not substructure_data:
+        return
+
+    ifc_file = ifc_generator.file
+    owner_history = getattr(ifc_generator, "_owner_history", None)
+    storey = getattr(ifc_generator, "storey", None)
+    mapper = getattr(ifc_generator, "mapper", None)
+    if mapper is None or storey is None:
+        return
+
+    # Maintain global-to-storey placement with X (span), Y (deck width), Z (vertical)
+    sub_local_place = ifc_file.createIfcLocalPlacement(
+        storey.ObjectPlacement,
+        mapper.create_axis2placement_3d(
+            (0.0, 0.0, 0.0),
+            z_dir=(0.0, 0.0, 1.0),
+            x_dir=(1.0, 0.0, 0.0),
+        ),
+    )
+
+    component_specs = [
+        ("PierCap", substructure_data.get("pier_cap", {}), "IfcBuildingElementProxy", "BEAM"),
+        ("Pier", substructure_data.get("pier", {}), "IfcBuildingElementProxy", "COLUMN"),
+        ("PileCap", substructure_data.get("pile_cap", {}), "IfcBuildingElementProxy", "FOOTING"),
+        ("Pile", substructure_data.get("piles", {}), "IfcBuildingElementProxy", "PILE"),
+    ]
+
+    for comp_label, comp_dict, _, predef_type in component_specs:
+        for idx, _ in enumerate(comp_dict.get("concrete", []), start=1):
+            elem = ifc_file.createIfcBuildingElementProxy(
+                create_ifc_guid(),
+                owner_history,
+                Name=f"{comp_label}_Concrete_{idx}",
+                Description=f"Substructure {comp_label} concrete (scale={scale} m/mm)",
+                ObjectPlacement=sub_local_place,
+                PredefinedType=predef_type,
+            )
+            ifc_generator.bind_element_to_storey(elem)
+
+        for idx, _ in enumerate(comp_dict.get("rebar", []), start=1):
+            bar = ifc_file.createIfcReinforcingBar(
+                create_ifc_guid(),
+                owner_history,
+                Name=f"{comp_label}_Rebar_{idx}",
+                Description=f"Substructure {comp_label} reinforcement bar (scale={scale} m/mm)",
+                ObjectPlacement=sub_local_place,
+                PredefinedType="BAR",
+            )
+            ifc_generator.bind_element_to_storey(bar)

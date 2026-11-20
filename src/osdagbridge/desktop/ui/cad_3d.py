@@ -1554,3 +1554,52 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+def display_substructure_shapes(display, substructure_data, concrete_opacity=0.35):
+    """Display substructure concrete semi-transparently and rebar as opaque steel."""
+    if display is None or not substructure_data:
+        return
+
+    ctx = display.Context
+    occ_transparency = max(0.0, min(1.0, 1.0 - float(concrete_opacity)))
+    concrete_color = Quantity_Color(0.68, 0.72, 0.76, Quantity_TOC_RGB)
+    steel_color = Quantity_Color(0.55, 0.58, 0.62, Quantity_TOC_RGB)
+
+    for shape in substructure_data.get("concrete", []):
+        ais = AIS_Shape(shape)
+        ais.SetColor(concrete_color)
+        ais.SetTransparency(occ_transparency)
+        ctx.Display(ais, False)
+
+    for shape in substructure_data.get("rebar", []):
+        ais = AIS_Shape(shape)
+        ais.SetColor(steel_color)
+        ais.SetTransparency(0.0)
+        ctx.Display(ais, False)
+
+    ctx.UpdateCurrentViewer()
+
+
+def render_substructure_in_viewer(display, substructure_data, concrete_opacity=0.35):
+    """Render concrete at 0.35 opacity (0.65 OCC transparency) and opaque steel rebar."""
+    if display is None or not substructure_data:
+        return
+
+    ctx = display.Context
+    occ_transparency = 1.0 - float(concrete_opacity)
+    concrete_color = Quantity_Color(0.68, 0.72, 0.76, Quantity_TOC_RGB)
+    rebar_color = Quantity_Color(0.55, 0.58, 0.62, Quantity_TOC_RGB)
+
+    for shape in substructure_data.get("concrete", []):
+        ais = AIS_Shape(shape)
+        ais.SetColor(concrete_color)
+        ais.SetTransparency(occ_transparency)
+        ctx.Display(ais, False)
+
+    for shape in substructure_data.get("rebar", []):
+        ais = AIS_Shape(shape)
+        ais.SetColor(rebar_color)
+        ais.SetTransparency(0.0)
+        ctx.Display(ais, False)
+
+    ctx.UpdateCurrentViewer()

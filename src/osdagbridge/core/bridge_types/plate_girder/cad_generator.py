@@ -1175,3 +1175,19 @@ def set_default_edge_style(shp, display):
     except Exception as e:
         # Edge styling is optional - don't crash if it fails
         pass
+
+
+def get_substructure_cad_shapes(**kwargs):
+    """Build parametric substructure concrete and rebar shapes for CAD and IFC."""
+    from osdagbridge.core.bridge_components.sub_structure.substructure_assembly import (
+        build_full_substructure,
+    )
+    return build_full_substructure(**kwargs)
+
+
+def generate_substructure_shapes(**kwargs):
+    """Route substructure concrete and rebar shapes into CAD generator pipeline."""
+    from osdagbridge.core.bridge_components.sub_structure.substructure_assembly import (
+        build_full_substructure,
+    )
+    return build_full_substructure(**kwargs)
